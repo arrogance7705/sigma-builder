@@ -826,9 +826,8 @@ createApp({
       review:         mkAiState(),
     });
 
-    // AI settings — split endpoint into proto + hostport for the new UI
-    const aiProto    = ref('http');
-    const aiHostPort = ref('');       // just "192.168.1.5:1234"
+    // AI settings
+    const aiEndpoint = ref(AI.getConfig().endpoint);
     const aiModel    = ref(AI.getConfig().model);
     const aiApiKey   = ref(AI.getConfig().apiKey || '');
     const aiAvailableModels = ref([]);
@@ -838,31 +837,17 @@ createApp({
     const aiAdvTemp      = ref(AI.getConfig().advanced?.temperature ?? 0.4);
     const aiAdvMaxTokens = ref(AI.getConfig().advanced?.maxTokens   ?? 1024);
 
-    // Parse stored endpoint back into proto + hostport on mount
-    (function() {
-      const stored = AI.getConfig().endpoint;
-      if (stored) {
-        const norm = AI.normalizeEndpoint(stored);
-        if (norm.startsWith('https://')) {
-          aiProto.value = 'https';
-          aiHostPort.value = norm.replace('https://', '').replace('/v1', '');
-        } else {
-          aiProto.value = 'http';
-          aiHostPort.value = norm.replace('http://', '').replace('/v1', '');
-        }
-      }
-    })();
-
-    const aiMixedContentWarning = computed(() =>
-      window.location.protocol === 'https:' && aiProto.value === 'http' && !!aiHostPort.value
-    );
+    const aiMixedContentWarning = computed(() => {
+      const ep = aiEndpoint.value || '';
+      return window.location.protocol === 'https:' && ep.startsWith('http://');
+    });
 
     const aiLiveBadgeText = computed(() => {
-      if (!aiHostPort.value) return '';
+      if (!aiEndpoint.value) return '';
       if (aiLiveStatus.value === 'testing') return '⟳';
-      if (aiLiveStatus.value === 'ok')     return '✓ connected';
-      if (aiLiveStatus.value === 'mixed')  return '⚠ HTTPS required';
-      if (aiLiveStatus.value === 'error')  return '✗ ' + aiLiveError.value;
+      if (aiLiveStatus.value === 'ok')      return '✓ connected';
+      if (aiLiveStatus.value === 'mixed')   return '⚠ HTTPS required';
+      if (aiLiveStatus.value === 'error')   return '✗ ' + aiLiveError.value;
       return '○';
     });
 
@@ -871,17 +856,12 @@ createApp({
       'badge-err':     aiLiveStatus.value === 'error',
       'badge-warn':    aiLiveStatus.value === 'mixed',
       'badge-testing': aiLiveStatus.value === 'testing',
-      'badge-idle':    aiLiveStatus.value === 'idle' || !aiHostPort.value,
+      'badge-idle':    !aiEndpoint.value || aiLiveStatus.value === 'idle',
     }));
-
-    function buildEndpoint() {
-      if (!aiHostPort.value) return '';
-      return AI.normalizeEndpoint(aiProto.value + '://' + aiHostPort.value);
-    }
 
     function saveAiConfig() {
       AI.saveConfig(
-        buildEndpoint(),
+        aiEndpoint.value,
         aiModel.value,
         aiApiKey.value,
         { temperature: aiAdvTemp.value, maxTokens: aiAdvMaxTokens.value }
@@ -899,20 +879,18 @@ createApp({
       aiAvailableModels.value = [];
       saveAiConfig();
       clearTimeout(_endpointDebounce);
-      if (!aiHostPort.value) return;
+      if (!aiEndpoint.value) return;
       aiLiveStatus.value = 'testing';
       _endpointDebounce = setTimeout(() => doLiveTest(), 1200);
     }
 
     async function doLiveTest() {
-      const endpoint = buildEndpoint();
-      if (!endpoint) return;
+      if (!aiEndpoint.value) return;
       aiLiveStatus.value = 'testing';
-      const result = await AI.testConnection(endpoint, aiApiKey.value);
+      const result = await AI.testConnection(aiEndpoint.value, aiApiKey.value);
       if (result.ok) {
         aiLiveStatus.value = 'ok';
         aiAvailableModels.value = result.models || [];
-        // auto-select first model if none set
         if (!aiModel.value && aiAvailableModels.value.length) {
           aiModel.value = aiAvailableModels.value[0];
           saveAiConfig();
@@ -929,15 +907,6 @@ createApp({
     async function refreshModels() {
       await doLiveTest();
     }
-
-    watch(aiProto, () => {
-      saveAiConfig();
-      if (aiHostPort.value) {
-        aiLiveStatus.value = 'testing';
-        clearTimeout(_endpointDebounce);
-        _endpointDebounce = setTimeout(() => doLiveTest(), 400);
-      }
-    });
 
     function aiDismiss(feature) {
       const s = aiState[feature];
@@ -1195,7 +1164,7 @@ createApp({
       wizardNext, wizardStart, wizardAiDescribe, wizardAiLogsource,
       ctxMenu, hideCtxMenu, ctxMatrixCell, ctxBrowserFile, ctxYamlPreview,
       aiAvailable, aiState,
-      aiProto, aiHostPort, aiModel, aiApiKey,
+      aiEndpoint, aiModel, aiApiKey,
       aiAvailableModels, aiLiveStatus, aiLiveError,
       aiMixedContentWarning, aiLiveBadgeText, aiLiveBadgeClass,
       aiShowAdvanced, aiAdvTemp, aiAdvMaxTokens,

@@ -719,24 +719,17 @@
           <span class="hint">LM Studio · Ollama · OpenAI · any OpenAI-compatible</span>
         </div>
 
-        <!-- Host:port row + live status badge -->
+        <!-- Endpoint + live status badge -->
         <div class="field-group">
-          <label>Local AI server</label>
+          <label>AI Endpoint URL <span class="hint">(OpenAI-compatible)</span></label>
           <div class="endpoint-row">
-            <!-- Protocol toggle: http / https buttons -->
-            <div class="proto-toggle">
-              <button class="btn-proto" :class="{ active: aiProto === 'http' }"  @click="aiProto = 'http'">http</button>
-              <button class="btn-proto" :class="{ active: aiProto === 'https' }" @click="aiProto = 'https'">https</button>
-            </div>
-            <!-- host:port input — just the bare address, no /v1 -->
-            <input v-model="aiHostPort" class="inp mono-inp endpoint-inp"
-                   placeholder="192.168.1.5:1234  or  localhost:11434"
+            <input v-model="aiEndpoint" class="inp mono-inp endpoint-inp"
+                   placeholder="http://localhost:1234/v1"
                    @input="onEndpointInput" />
-            <!-- live status badge -->
             <span class="ai-live-badge" :class="aiLiveBadgeClass">{{ aiLiveBadgeText }}</span>
           </div>
-          <p class="hint-text"><code>/v1</code> is appended automatically. Leave blank to disable AI features.</p>
-          <!-- Mixed content warning — shown when page is HTTPS but proto is http -->
+          <p class="hint-text">Works with LM Studio, Ollama, OpenAI, or any OpenAI-compatible server. Leave blank to disable AI.</p>
+          <!-- Mixed content warning — shown when page is HTTPS but endpoint is HTTP -->
           <div v-if="aiMixedContentWarning" class="mixed-content-warn">
             <strong>⚠ Mixed content blocked</strong><br>
             Your browser prevents this HTTPS page from contacting an HTTP server on your LAN.<br>
@@ -744,32 +737,32 @@
             <ol>
               <li>Open the tool directly: <code>file://</code> or <code>http://</code> (not GitHub Pages)</li>
               <li>Enable HTTPS in LM Studio: <em>Settings → Server → Enable HTTPS</em></li>
-              <li>Use <code>https</code> protocol above and accept the self-signed cert first</li>
+              <li>Change the URL above to <code>https://</code> and accept the self-signed cert first</li>
             </ol>
           </div>
         </div>
 
         <!-- Model picker — dropdown after models are fetched, text input as fallback -->
-        <div class="field-group" v-if="aiHostPort">
+        <div class="field-group">
           <label>Model</label>
           <div class="model-row">
             <select v-if="aiAvailableModels.length" v-model="aiModel" class="inp" @change="onAiSettingChange">
               <option value="">— pick a model —</option>
               <option v-for="m in aiAvailableModels" :key="m" :value="m">{{ m }}</option>
             </select>
-            <input v-else v-model="aiModel" class="inp mono-inp" placeholder="model-name (fetched after connect)" @input="onAiSettingChange" />
+            <input v-else v-model="aiModel" class="inp mono-inp" placeholder="model-name" @input="onAiSettingChange" />
             <button class="btn-tool small" @click="refreshModels" :disabled="aiLiveStatus === 'testing'" title="Re-fetch model list">↺</button>
           </div>
         </div>
 
         <!-- API Key -->
-        <div class="field-group" v-if="aiHostPort">
+        <div class="field-group">
           <label>API Key <span class="hint">(optional — leave blank for local)</span></label>
           <input v-model="aiApiKey" type="password" class="inp mono-inp" placeholder="sk-… or blank for LM Studio/Ollama" @input="onAiSettingChange" />
         </div>
 
         <!-- Advanced settings (collapsible) -->
-        <div class="field-group" v-if="aiHostPort">
+        <div class="field-group">
           <button class="btn-inline-link adv-toggle" @click="aiShowAdvanced = !aiShowAdvanced">
             {{ aiShowAdvanced ? '▾' : '▸' }} Advanced settings
           </button>
