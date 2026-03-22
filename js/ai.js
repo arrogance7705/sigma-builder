@@ -55,18 +55,41 @@
     return !!(c.endpoint && c.model);
   }
 
+  // ── Local address detection ───────────────────────────────────────────────
+
+  function isLocalAddress(url) {
+    try {
+      const host = new URL(url).hostname;
+      // localhost and loopback
+      if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+      // IPv4 private ranges: 10.x.x.x, 172.16-31.x.x, 192.168.x.x
+      if (/^10\./.test(host)) return true;
+      if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true;
+      if (/^192\.168\./.test(host)) return true;
+      // Link-local: 169.254.x.x
+      if (/^169\.254\./.test(host)) return true;
+      // .local mDNS hostnames
+      if (/\.local$/.test(host)) return true;
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // ── Connection test ───────────────────────────────────────────────────────
 
   async function testConnection(endpoint, apiKey) {
     const normalized = normalizeEndpoint(endpoint);
     if (!normalized) return { ok: false, error: 'no_endpoint', message: 'No endpoint provided.' };
 
-    // Mixed-content detection: block HTTP from HTTPS page before attempting fetch
-    if (window.location.protocol === 'https:' && normalized.startsWith('http://')) {
+    // Mixed-content detection: block HTTP from HTTPS page ONLY for non-local addresses.
+    // Browsers allow HTTP requests to private/local IPs from HTTPS pages (mixed content
+    // rules don't apply to RFC-1918 / loopback addresses in most browsers).
+    if (window.location.protocol === 'https:' && normalized.startsWith('http://') && !isLocalAddress(normalized)) {
       return {
         ok: false,
         error: 'mixed_content',
-        message: 'Browser blocks HTTP requests from HTTPS pages. See instructions below.',
+        message: 'Browser blocks HTTP requests from HTTPS pages (public endpoints only). Use an HTTPS endpoint, or if your LM Studio is on a local/private IP, enter that address directly.',
       };
     }
 
