@@ -729,17 +729,6 @@
             <span class="ai-live-badge" :class="aiLiveBadgeClass">{{ aiLiveBadgeText }}</span>
           </div>
           <p class="hint-text">Works with LM Studio, Ollama, OpenAI, or any OpenAI-compatible server. Leave blank to disable AI.</p>
-          <!-- Mixed content warning — shown when page is HTTPS but endpoint is HTTP -->
-          <div v-if="aiMixedContentWarning" class="mixed-content-warn">
-            <strong>⚠ Mixed content blocked</strong><br>
-            Your browser prevents this HTTPS page from contacting an HTTP server on your LAN.<br>
-            <strong>Fix options:</strong>
-            <ol>
-              <li>Open the tool directly: <code>file://</code> or <code>http://</code> (not GitHub Pages)</li>
-              <li>Enable HTTPS in LM Studio: <em>Settings → Server → Enable HTTPS</em></li>
-              <li>Change the URL above to <code>https://</code> and accept the self-signed cert first</li>
-            </ol>
-          </div>
         </div>
 
         <!-- Model picker — dropdown after models are fetched, text input as fallback -->

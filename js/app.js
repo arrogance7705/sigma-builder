@@ -837,11 +837,6 @@ createApp({
     const aiAdvTemp      = ref(AI.getConfig().advanced?.temperature ?? 0.4);
     const aiAdvMaxTokens = ref(AI.getConfig().advanced?.maxTokens   ?? 1024);
 
-    const aiMixedContentWarning = computed(() => {
-      const ep = aiEndpoint.value || '';
-      return window.location.protocol === 'https:' && ep.startsWith('http://');
-    });
-
     const aiLiveBadgeText = computed(() => {
       if (!aiEndpoint.value) return '';
       if (aiLiveStatus.value === 'testing') return '⟳';
@@ -1166,7 +1161,7 @@ createApp({
       aiAvailable, aiState,
       aiEndpoint, aiModel, aiApiKey,
       aiAvailableModels, aiLiveStatus, aiLiveError,
-      aiMixedContentWarning, aiLiveBadgeText, aiLiveBadgeClass,
+      aiLiveBadgeText, aiLiveBadgeClass,
       aiShowAdvanced, aiAdvTemp, aiAdvMaxTokens,
       onEndpointInput, onAiSettingChange, refreshModels, saveAiConfig,
       aiGenerate, aiDismiss, acceptAiSuggestion,
