@@ -795,7 +795,6 @@ select.level-critical       { color: var(--lvl-critical); }
   .btn-tool { padding: 4px 8px; font-size: 0.65rem; }
   .preview-actions { flex-wrap: wrap; }
   .ai-actions      { flex-wrap: wrap; }
-  .wizard-scenario-grid { grid-template-columns: 1fr 1fr; }
 
   /* ─ iOS auto-zoom prevention — inputs must be ≥ 16px font-size ─ */
   .inp, select.inp, textarea.inp { font-size: 16px; }
@@ -1044,8 +1043,16 @@ select.level-critical       { color: var(--lvl-critical); }
 /* ── WIZARD MODAL ─────────────────────────────────────────── */
 
 .modal-wizard { max-width: 680px; }
-.wizard-body  { gap: 0; }
 
+/* Wizard body: scrollable, fills available space between header and footer */
+.wizard-body {
+  gap: 0;
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Step progress dots */
 .wizard-steps {
   display: flex; align-items: center; gap: 6px;
   font-family: var(--font-mono); font-size: 0.9rem;
@@ -1054,7 +1061,7 @@ select.level-critical       { color: var(--lvl-critical); }
 .wizard-step-dot.active { color: var(--white); }
 .wizard-step-dot.done   { color: var(--ok); }
 
-/* Scenario grid */
+/* Scenario grid — 4 columns on desktop, responsive below */
 .wizard-scenario-grid {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;
 }
@@ -1063,6 +1070,7 @@ select.level-critical       { color: var(--lvl-critical); }
   padding: 0.75rem 0.5rem; background: var(--bg-2); border: 1px solid var(--border);
   border-radius: var(--r-md); cursor: pointer; text-align: center;
   transition: background 0.15s, border-color 0.15s;
+  touch-action: manipulation; min-height: 48px;
 }
 .wizard-scenario-card:hover  { background: var(--bg-3); border-color: var(--border-focus); }
 .wizard-scenario-card.active { border-color: var(--white); background: rgba(226,226,226,0.06); }
@@ -1074,9 +1082,10 @@ select.level-critical       { color: var(--lvl-critical); }
 .wizard-level-pills { display: flex; gap: 0.35rem; flex-wrap: wrap; }
 .wizard-level-pill {
   font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em;
-  padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border);
+  padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border);
   background: var(--bg-2); color: var(--text-muted); cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
+  touch-action: manipulation;
 }
 .wizard-level-pill:hover { border-color: var(--border-focus); color: var(--text); }
 .wizard-level-pill.active                    { color: var(--bg); border-color: transparent; }
@@ -1086,16 +1095,16 @@ select.level-critical       { color: var(--lvl-critical); }
 .wizard-level-pill.pill-high.active          { background: var(--lvl-high); }
 .wizard-level-pill.pill-critical.active      { background: var(--lvl-critical); }
 
-/* Logsource grid */
+/* Logsource list */
 .wizard-ls-grid {
   display: flex; flex-direction: column; gap: 0.35rem;
-  max-height: 360px; overflow-y: auto;
 }
 .wizard-ls-card {
   display: flex; flex-direction: column; gap: 3px;
-  padding: 0.6rem 0.9rem; background: var(--bg-2); border: 1px solid var(--border);
+  padding: 0.65rem 0.9rem; background: var(--bg-2); border: 1px solid var(--border);
   border-radius: var(--r-sm); cursor: pointer; text-align: left;
   transition: background 0.12s, border-color 0.12s; width: 100%;
+  touch-action: manipulation;
 }
 .wizard-ls-card:hover  { background: var(--bg-3); border-color: var(--border-focus); }
 .wizard-ls-card.active { border-color: var(--white); background: rgba(226,226,226,0.06); }
@@ -1107,7 +1116,36 @@ select.level-critical       { color: var(--lvl-critical); }
   background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md);
   padding: 1rem; font-family: var(--font-mono); font-size: 0.7rem; line-height: 1.7;
   color: var(--text); white-space: pre; overflow-x: auto; tab-size: 2;
-  max-height: 360px; overflow-y: auto;
+  overflow-y: auto;
 }
 
-.wizard-footer { border-top: 1px solid var(--border); padding-top: 0.75rem; justify-content: space-between; }
+/* Footer: cancel left, back+next right */
+.wizard-footer {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  justify-content: space-between;
+  flex-shrink: 0;    /* never squish the footer */
+}
+
+/* ── WIZARD MOBILE OVERRIDES ─── */
+@media (max-width: 768px) {
+  /* Scenario: 2 columns, hide desc text to save vertical space */
+  .wizard-scenario-grid { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+  .wizard-scenario-card { padding: 0.6rem 0.4rem; gap: 0.25rem; }
+  .wizard-sc-desc  { display: none; }   /* too much text in 2-col layout */
+  .wizard-sc-label { font-size: 0.72rem; }
+  .wizard-sc-icon  { font-size: 1.25rem; }
+
+  /* Level pills: stretch to fill row */
+  .wizard-level-pills { gap: 0.3rem; }
+  .wizard-level-pill  { flex: 1; text-align: center; padding: 7px 4px; min-width: 0; }
+
+  /* Logsource: slightly less padding */
+  .wizard-ls-card { padding: 0.55rem 0.75rem; }
+
+  /* YAML preview: don't let it grow infinitely — modal body scrolls instead */
+  .wizard-yaml-preview { font-size: 0.65rem; }
+
+  /* Footer buttons: stack only if truly too narrow, otherwise side-by-side */
+  .wizard-footer { gap: 0.5rem; }
+}
