@@ -173,7 +173,8 @@ code {
 .builder-layout {
   display: grid; grid-template-columns: 1fr 420px;
   height: calc(100vh - var(--nav-h) - var(--toolbar-h) - 48px);
-  min-height: 600px; max-width: 1600px; margin: 0 auto;
+  height: calc(100dvh - var(--nav-h) - var(--toolbar-h) - 48px);
+  min-height: 400px; max-width: 1600px; margin: 0 auto;
   transition: grid-template-columns 0.2s ease;
 }
 .builder-layout.matrix-mode {
@@ -421,6 +422,8 @@ select.level-critical       { color: var(--lvl-critical); }
   transition: background 0.1s, border-color 0.1s;
   position: relative;
   user-select: none;
+  touch-action: manipulation;   /* no 300ms tap delay on mobile */
+  min-height: 44px;             /* iOS minimum tappable area */
 }
 .matrix-cell:hover {
   background: var(--bg-2);
@@ -661,12 +664,141 @@ select.level-critical       { color: var(--lvl-critical); }
 
 /* ── RESPONSIVE ──────────────────────────────────────────── */
 
+/* ---- Tablet (≤ 1024px) already hides preview panel ---- */
+@media (max-width: 1024px) {
+  .builder-layout {
+    /* use dynamic viewport height when available so mobile chrome bars don't cut content */
+    height: calc(100dvh - var(--nav-h) - var(--toolbar-h) - 48px);
+  }
+}
+
+/* ---- Mobile (≤ 768px) ---- */
 @media (max-width: 768px) {
+  /* ─ Variables ─ */
+  :root {
+    --nav-h:     44px;
+    --toolbar-h: 44px;
+  }
+
+  /* ─ Nav ─ */
+  .nav-inner { padding: 0 1rem; }
+  .nav-links { display: none; }        /* hide github link — saves space */
+
+  /* ─ Toolbar: two rows ─
+     Row 1: logo + lint + ⚙ + export
+     Row 2: tabs scrollable */
+  .toolbar {
+    height: auto;
+    flex-direction: column;
+    --toolbar-h: 88px;        /* two rows × 44px */
+  }
+  .toolbar-inner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    gap: 0;
+  }
+  /* Row 1 */
+  .toolbar-left {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0 0.75rem; height: 44px; flex-shrink: 0;
+  }
+  .toolbar-right {
+    margin-left: auto;
+    gap: 0.3rem;
+  }
+  /* Hide the wordy buttons — keep ⚙ + export + new */
+  .toolbar-right .btn-tool:not(.accent):not([data-keep]) {
+    display: none;
+  }
+  /* "+ new" and "⚙" always visible */
+  .toolbar-right .btn-tool[data-keep] { display: flex; }
+
+  /* Tabs row — full width, horizontally scrollable */
+  .toolbar-tabs {
+    flex: none;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    border-top: 1px solid var(--border);
+    justify-content: flex-start;
+    height: 44px;
+  }
+  .toolbar-tabs::-webkit-scrollbar { display: none; }
+  .toolbar-tabs .tab-btn {
+    padding: 0 0.85rem;
+    font-size: 0.65rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ─ Builder layout ─ */
+  .builder-layout {
+    height: calc(100dvh - var(--nav-h) - 88px - 48px);
+    min-height: 0;
+  }
+  .builder-layout.matrix-mode {
+    height: calc(100dvh - var(--nav-h) - 88px - 48px);
+  }
+  .preview-panel { display: none; }     /* already hidden at 1024 but reaffirm */
+
+  /* ─ Form padding ─ */
+  .tab-content { padding: 1rem 0.875rem; }
+
+  /* ─ Field rows: always single column ─ */
   .field-row { grid-template-columns: 1fr; }
-  .toolbar-right { gap: 0.4rem; }
-  .btn-tool { padding: 4px 8px; font-size: 0.65rem; }
-  .browser-layout { grid-template-columns: 1fr; }
+
+  /* ─ Detection: stack field-name + modifier + × vertically ─ */
+  .field-entry-top {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .field-name-wrap { width: 100%; flex: none; order: 1; }
+  .modifier-sel    { flex: 1; min-width: 0; order: 2; }
+  .field-entry-top .btn-icon { order: 3; flex-shrink: 0; }
+
+  /* ─ Group header: wrap name + type toggle ─ */
+  .group-header { flex-wrap: wrap; }
+  .group-name-inp { flex: 1; min-width: 80px; }
+
+  /* ─ Matrix: make cells touch-friendlier ─ */
+  .matrix-cell { padding: 6px 8px; }
+  .cell-name   { font-size: 0.72rem; }
+  .cell-id     { font-size: 0.6rem; }
+  .matrix-search-inp { width: 100%; }
+  .matrix-header { gap: 0.35rem; }
+  .matrix-controls { width: 100%; }
+
+  /* ─ Modals: full-screen-ish ─ */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;      /* sheet slides up from bottom */
+  }
+  .modal {
+    max-width: 100%;
+    width: 100%;
+    max-height: 92dvh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom: none;
+  }
+  .modal-browser { height: 90dvh; }
+  .modal-wizard  { max-width: 100%; }
+
+  /* ─ Browser layout ─ */
+  .browser-layout  { grid-template-columns: 1fr; }
   .browser-sidebar { display: none; }
+
+  /* ─ Misc ─ */
+  .btn-tool { padding: 4px 8px; font-size: 0.65rem; }
+  .preview-actions { flex-wrap: wrap; }
+  .ai-actions      { flex-wrap: wrap; }
+  .wizard-scenario-grid { grid-template-columns: 1fr 1fr; }
+
+  /* ─ iOS auto-zoom prevention — inputs must be ≥ 16px font-size ─ */
+  .inp, select.inp, textarea.inp { font-size: 16px; }
 }
 
 /* ── CONTEXT MENU ────────────────────────────────────────── */
