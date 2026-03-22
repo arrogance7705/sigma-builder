@@ -6,6 +6,24 @@
 
   const STORAGE_KEY = 'sigma_ai_config';
 
+  // ── Endpoint normalizer ───────────────────────────────────────────────────
+
+  function normalizeEndpoint(raw) {
+    if (!raw || !raw.trim()) return '';
+    let s = raw.trim();
+    // 1. Prepend http:// if no protocol
+    if (!/^https?:\/\//i.test(s)) {
+      s = 'http://' + s;
+    }
+    // 2. Trim trailing slashes
+    s = s.replace(/\/+$/, '');
+    // 3. Append /v1 if not already ending with /v1
+    if (!/\/v1$/i.test(s)) {
+      s = s + '/v1';
+    }
+    return s;
+  }
+
   // ── Config ────────────────────────────────────────────────────────────────
 
   function getConfig() {
@@ -17,14 +35,19 @@
           endpoint: c.endpoint || '',
           model:    c.model    || '',
           apiKey:   c.apiKey   || '',
+          advanced: {
+            temperature: c.advanced?.temperature ?? 0.4,
+            maxTokens:   c.advanced?.maxTokens   ?? 1024,
+          },
         };
       }
     } catch (e) {}
-    return { endpoint: '', model: '', apiKey: '' };
+    return { endpoint: '', model: '', apiKey: '', advanced: { temperature: 0.4, maxTokens: 1024 } };
   }
 
-  function saveConfig(endpoint, model, apiKey) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ endpoint, model, apiKey }));
+  function saveConfig(endpoint, model, apiKey, advanced) {
+    const adv = advanced || { temperature: 0.4, maxTokens: 1024 };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ endpoint, model, apiKey, advanced: adv }));
   }
 
   function isConfigured() {
@@ -34,20 +57,44 @@
 
   // ── Connection test ───────────────────────────────────────────────────────
 
-  async function testConnection() {
-    const c = getConfig();
-    if (!c.endpoint) throw new Error('No endpoint configured.');
+  async function testConnection(endpoint, apiKey) {
+    const normalized = normalizeEndpoint(endpoint);
+    if (!normalized) return { ok: false, error: 'no_endpoint', message: 'No endpoint provided.' };
+
+    // Mixed-content detection: block HTTP from HTTPS page before attempting fetch
+    if (window.location.protocol === 'https:' && normalized.startsWith('http://')) {
+      return {
+        ok: false,
+        error: 'mixed_content',
+        message: 'Browser blocks HTTP requests from HTTPS pages. See instructions below.',
+      };
+    }
+
     const headers = { 'Content-Type': 'application/json' };
-    if (c.apiKey) headers['Authorization'] = `Bearer ${c.apiKey}`;
-    // Try /models endpoint first (OpenAI-compatible)
-    const url = c.endpoint.replace(/\/+$/, '') + '/models';
-    const resp = await fetch(url, { headers });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
-    const models = Array.isArray(data.data)
-      ? data.data.map(m => m.id || m)
-      : [];
-    return { models };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+    const url = normalized + '/models';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const resp = await fetch(url, { headers, signal: controller.signal });
+      clearTimeout(timer);
+      if (!resp.ok) {
+        return { ok: false, error: 'http_error', message: `HTTP ${resp.status}` };
+      }
+      const data = await resp.json();
+      const models = Array.isArray(data.data)
+        ? data.data.map(m => (typeof m === 'string' ? m : (m.id || String(m))))
+        : [];
+      return { ok: true, models };
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') {
+        return { ok: false, error: 'timeout', message: 'Connection timed out after 8s' };
+      }
+      return { ok: false, error: 'network', message: e.message };
+    }
   }
 
   // ── Streaming runner ──────────────────────────────────────────────────────
@@ -58,7 +105,7 @@
       if (onError) onError('AI not configured.');
       return;
     }
-    const url = c.endpoint.replace(/\/+$/, '') + '/chat/completions';
+    const url = normalizeEndpoint(c.endpoint) + '/chat/completions';
     const headers = { 'Content-Type': 'application/json' };
     if (c.apiKey) headers['Authorization'] = `Bearer ${c.apiKey}`;
 
@@ -73,8 +120,8 @@
           model: c.model,
           messages,
           stream: true,
-          temperature: 0.4,
-          max_tokens: 1024,
+          temperature: c.advanced?.temperature ?? 0.4,
+          max_tokens: c.advanced?.maxTokens ?? 1024,
         }),
       });
     } catch (e) {
@@ -88,9 +135,9 @@
           body: JSON.stringify({
             model: c.model,
             messages,
-            stream: false,
-            temperature: 0.4,
-            max_tokens: 1024,
+          stream: false,
+          temperature: c.advanced?.temperature ?? 0.4,
+          max_tokens: c.advanced?.maxTokens ?? 1024,
           }),
         });
         if (!resp.ok) {
@@ -324,6 +371,7 @@ Return ONLY valid JSON — no markdown, no extra text.`,
   // ── Export ────────────────────────────────────────────────────────────────
 
   window.SigmaAI = {
+    normalizeEndpoint,
     getConfig,
     saveConfig,
     isConfigured,

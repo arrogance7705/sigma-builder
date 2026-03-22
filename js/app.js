@@ -826,30 +826,118 @@ createApp({
       review:         mkAiState(),
     });
 
-    // AI settings
-    const aiEndpoint  = ref(AI.getConfig().endpoint);
-    const aiModel     = ref(AI.getConfig().model);
-    const aiApiKey    = ref(AI.getConfig().apiKey);
-    const aiTesting   = ref(false);
-    const aiTestResult = ref(null);
+    // AI settings — split endpoint into proto + hostport for the new UI
+    const aiProto    = ref('http');
+    const aiHostPort = ref('');       // just "192.168.1.5:1234"
+    const aiModel    = ref(AI.getConfig().model);
+    const aiApiKey   = ref(AI.getConfig().apiKey || '');
+    const aiAvailableModels = ref([]);
+    const aiLiveStatus = ref('idle');   // 'idle' | 'testing' | 'ok' | 'error' | 'mixed'
+    const aiLiveError  = ref('');
+    const aiShowAdvanced = ref(false);
+    const aiAdvTemp      = ref(AI.getConfig().advanced?.temperature ?? 0.4);
+    const aiAdvMaxTokens = ref(AI.getConfig().advanced?.maxTokens   ?? 1024);
+
+    // Parse stored endpoint back into proto + hostport on mount
+    (function() {
+      const stored = AI.getConfig().endpoint;
+      if (stored) {
+        const norm = AI.normalizeEndpoint(stored);
+        if (norm.startsWith('https://')) {
+          aiProto.value = 'https';
+          aiHostPort.value = norm.replace('https://', '').replace('/v1', '');
+        } else {
+          aiProto.value = 'http';
+          aiHostPort.value = norm.replace('http://', '').replace('/v1', '');
+        }
+      }
+    })();
+
+    const aiMixedContentWarning = computed(() =>
+      window.location.protocol === 'https:' && aiProto.value === 'http' && !!aiHostPort.value
+    );
+
+    const aiLiveBadgeText = computed(() => {
+      if (!aiHostPort.value) return '';
+      if (aiLiveStatus.value === 'testing') return '⟳';
+      if (aiLiveStatus.value === 'ok')     return '✓ connected';
+      if (aiLiveStatus.value === 'mixed')  return '⚠ HTTPS required';
+      if (aiLiveStatus.value === 'error')  return '✗ ' + aiLiveError.value;
+      return '○';
+    });
+
+    const aiLiveBadgeClass = computed(() => ({
+      'badge-ok':      aiLiveStatus.value === 'ok',
+      'badge-err':     aiLiveStatus.value === 'error',
+      'badge-warn':    aiLiveStatus.value === 'mixed',
+      'badge-testing': aiLiveStatus.value === 'testing',
+      'badge-idle':    aiLiveStatus.value === 'idle' || !aiHostPort.value,
+    }));
+
+    function buildEndpoint() {
+      if (!aiHostPort.value) return '';
+      return AI.normalizeEndpoint(aiProto.value + '://' + aiHostPort.value);
+    }
 
     function saveAiConfig() {
-      AI.saveConfig(aiEndpoint.value, aiModel.value, aiApiKey.value);
-      notify('✓ AI config saved');
+      AI.saveConfig(
+        buildEndpoint(),
+        aiModel.value,
+        aiApiKey.value,
+        { temperature: aiAdvTemp.value, maxTokens: aiAdvMaxTokens.value }
+      );
     }
 
-    async function testAiConnection() {
-      aiTesting.value = true;
-      aiTestResult.value = null;
-      try {
-        const result = await AI.testConnection();
-        aiTestResult.value = { ok: true, models: result.models };
-      } catch(e) {
-        aiTestResult.value = { ok: false, error: e.message };
-      } finally {
-        aiTesting.value = false;
+    function onAiSettingChange() {
+      saveAiConfig();
+    }
+
+    let _endpointDebounce = null;
+    function onEndpointInput() {
+      aiLiveStatus.value = 'idle';
+      aiLiveError.value = '';
+      aiAvailableModels.value = [];
+      saveAiConfig();
+      clearTimeout(_endpointDebounce);
+      if (!aiHostPort.value) return;
+      aiLiveStatus.value = 'testing';
+      _endpointDebounce = setTimeout(() => doLiveTest(), 1200);
+    }
+
+    async function doLiveTest() {
+      const endpoint = buildEndpoint();
+      if (!endpoint) return;
+      aiLiveStatus.value = 'testing';
+      const result = await AI.testConnection(endpoint, aiApiKey.value);
+      if (result.ok) {
+        aiLiveStatus.value = 'ok';
+        aiAvailableModels.value = result.models || [];
+        // auto-select first model if none set
+        if (!aiModel.value && aiAvailableModels.value.length) {
+          aiModel.value = aiAvailableModels.value[0];
+          saveAiConfig();
+        }
+      } else if (result.error === 'mixed_content') {
+        aiLiveStatus.value = 'mixed';
+        aiLiveError.value = '';
+      } else {
+        aiLiveStatus.value = 'error';
+        aiLiveError.value = result.message || 'connection failed';
       }
     }
+
+    async function refreshModels() {
+      await doLiveTest();
+    }
+
+    watch(aiProto, () => {
+      saveAiConfig();
+      if (aiHostPort.value) {
+        aiLiveStatus.value = 'testing';
+        clearTimeout(_endpointDebounce);
+        _endpointDebounce = setTimeout(() => doLiveTest(), 400);
+      }
+    });
 
     function aiDismiss(feature) {
       const s = aiState[feature];
@@ -1106,8 +1194,12 @@ createApp({
       wizard, wizardScenarios, wizardFilteredLogsources, wizardPreviewYaml,
       wizardNext, wizardStart, wizardAiDescribe, wizardAiLogsource,
       ctxMenu, hideCtxMenu, ctxMatrixCell, ctxBrowserFile, ctxYamlPreview,
-      aiAvailable, aiState, aiEndpoint, aiModel, aiApiKey,
-      aiTesting, aiTestResult, saveAiConfig, testAiConnection,
+      aiAvailable, aiState,
+      aiProto, aiHostPort, aiModel, aiApiKey,
+      aiAvailableModels, aiLiveStatus, aiLiveError,
+      aiMixedContentWarning, aiLiveBadgeText, aiLiveBadgeClass,
+      aiShowAdvanced, aiAdvTemp, aiAdvMaxTokens,
+      onEndpointInput, onAiSettingChange, refreshModels, saveAiConfig,
       aiGenerate, aiDismiss, acceptAiSuggestion,
       acceptTitle, acceptDescription,
       acceptDetectionGroup, acceptDetectionCondition, acceptAllDetection,
