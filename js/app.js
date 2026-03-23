@@ -1123,17 +1123,9 @@ createApp({
       'badge-idle':    !aiEndpoint.value || aiLiveStatus.value === 'idle',
     }));
 
-    const AI_UI = {
-      title:          { heading: '✨ AI TITLE SUGGESTIONS',            loading: 'Generating suggestions…' },
-      describe:       { heading: '✨ AI DESCRIPTION SUGGESTIONS',      loading: 'Generating suggestions…' },
-      falsepositives: { heading: '✨ AI FALSE POSITIVE SUGGESTIONS',   loading: 'Generating suggestions…' },
-      tags:           { heading: '✨ AI TAG SUGGESTIONS',              loading: 'Generating suggestions…' },
-      detection:      { heading: '✨ AI DETECTION SUGGESTIONS',        loading: 'Generating suggestions…' },
-      explain:        { heading: '✨ RULE EXPLANATION',                loading: 'Generating explanation…' },
-      review:         { heading: '✨ RULE REVIEW',                     loading: 'Reviewing rule…' },
-    };
-    function aiPanelHeading(feature) { return AI_UI[feature]?.heading || '✨ AI SUGGESTIONS'; }
-    function aiLoadingLabel(feature) { return AI_UI[feature]?.loading || 'Generating…'; }
+    // Use helpers from ai-panel-mixin.js
+    function aiPanelHeading(feature) { return window.AiPanelHelpers.getAiPanelHeading(feature); }
+    function aiLoadingLabel(feature) { return window.AiPanelHelpers.getAiLoadingLabel(feature); }
 
     const aiModelRecommendation = computed(() => {
       const m = aiModel.value || '';
