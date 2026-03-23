@@ -136,25 +136,48 @@ function ruleFromParsed(obj) {
   if (obj.detection) {
     rule.detection.condition  = obj.detection.condition || 'selection';
     rule.detection.timeframe  = obj.detection.timeframe || '';
-    rule.detection.groups = [];
-    Object.entries(obj.detection).forEach(([key, val]) => {
-      if (key === 'condition' || key === 'timeframe') return;
-      const group = { id: uuid4(), name: key, type: 'fields', fields: [], keywords: [''] };
-      if (Array.isArray(val) && val.every(v => typeof v === 'string')) {
-        group.type = 'keywords';
-        group.keywords = val;
-      } else if (typeof val === 'object' && !Array.isArray(val) && val !== null) {
-        group.type = 'fields';
-        Object.entries(val).forEach(([fieldKey, fieldVal]) => {
-          const parts = fieldKey.split('|');
-          const field = parts[0];
-          const modifier = parts.slice(1).join('|');
-          const values = Array.isArray(fieldVal) ? fieldVal.map(String) : [String(fieldVal ?? '')];
-          group.fields.push({ id: uuid4(), field, modifier, values });
-        });
-      }
-      rule.detection.groups.push(group);
-    });
+
+    // Internal app shape from shared URL hash / saved draft:
+    // detection: { groups: [...], condition, timeframe }
+    if (Array.isArray(obj.detection.groups)) {
+      rule.detection.groups = obj.detection.groups.map((g, idx) => ({
+        id: g.id || uuid4(),
+        name: g.name || (idx === 0 ? 'selection' : `filter_${idx}`),
+        type: g.type === 'keywords' ? 'keywords' : 'fields',
+        fields: Array.isArray(g.fields) && g.fields.length
+          ? g.fields.map(f => ({
+              id: f.id || uuid4(),
+              field: String(f.field || ''),
+              modifier: String(f.modifier || ''),
+              values: Array.isArray(f.values) && f.values.length ? f.values.map(v => String(v ?? '')) : [''],
+            }))
+          : [emptyField()],
+        keywords: Array.isArray(g.keywords) && g.keywords.length ? g.keywords.map(k => String(k ?? '')) : [''],
+      }));
+    } else {
+      // Sigma/YAML shape:
+      // detection: { selection: {...}, filter_x: {...}, condition, timeframe }
+      rule.detection.groups = [];
+      Object.entries(obj.detection).forEach(([key, val]) => {
+        if (key === 'condition' || key === 'timeframe') return;
+        const group = { id: uuid4(), name: key, type: 'fields', fields: [], keywords: [''] };
+        if (Array.isArray(val) && val.every(v => typeof v === 'string')) {
+          group.type = 'keywords';
+          group.keywords = val;
+        } else if (typeof val === 'object' && !Array.isArray(val) && val !== null) {
+          group.type = 'fields';
+          Object.entries(val).forEach(([fieldKey, fieldVal]) => {
+            const parts = fieldKey.split('|');
+            const field = parts[0];
+            const modifier = parts.slice(1).join('|');
+            const values = Array.isArray(fieldVal) ? fieldVal.map(String) : [String(fieldVal ?? '')];
+            group.fields.push({ id: uuid4(), field, modifier, values });
+          });
+        }
+        rule.detection.groups.push(group);
+      });
+    }
+
     if (rule.detection.groups.length === 0) rule.detection.groups.push(emptyGroup());
   }
   return rule;
