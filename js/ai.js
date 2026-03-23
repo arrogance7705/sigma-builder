@@ -132,6 +132,7 @@
       if (typeof value.content === 'string') return value.content;
       if (Array.isArray(value.content)) return value.content.map(extractText).join('');
       if (typeof value.output_text === 'string') return value.output_text;
+      if (typeof value.reasoning_content === 'string') return value.reasoning_content;  // Some models use reasoning_content
       if (Array.isArray(value.parts)) return value.parts.map(extractText).join('');
       if (Array.isArray(value.items)) return value.items.map(extractText).join('');
     }
@@ -187,7 +188,15 @@
           return;
         }
         const json = await resp.json();
-        const content = extractText(json.choices?.[0]?.message?.content || json.choices?.[0]?.text || json.output_text || '');
+        const choice = json.choices?.[0] || {};
+        const content = extractText(
+          choice.message?.content
+          || choice.message?.reasoning_content
+          || choice.text
+          || choice.reasoning_content
+          || json.output_text
+          || ''
+        );
         if (content && onChunk) onChunk(content);
         if (onDone) onDone();
         return;
@@ -209,7 +218,15 @@
     if (!ct.includes('text/event-stream')) {
       try {
         const json = await resp.json();
-        const content = extractText(json.choices?.[0]?.message?.content || json.choices?.[0]?.text || json.output_text || '');
+        const choice = json.choices?.[0] || {};
+        const content = extractText(
+          choice.message?.content
+          || choice.message?.reasoning_content
+          || choice.text
+          || choice.reasoning_content
+          || json.output_text
+          || ''
+        );
         if (content && onChunk) onChunk(content);
         if (onDone) onDone();
       } catch (e) {
@@ -242,7 +259,9 @@
             const delta = extractText(
               choice.delta?.content
               || choice.delta?.text
+              || choice.delta?.reasoning_content  // Some models put reasoning here
               || choice.message?.content
+              || choice.message?.reasoning_content  // Some models put reasoning here
               || choice.text
               || obj.output_text
               || ''
