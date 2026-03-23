@@ -267,29 +267,38 @@
     const cleanedText = String(text)
       .replace(/<think>[\s\S]*?<\/think>/gi, '')
       .trim();
+    
     // Try direct parse first
     try { return JSON.parse(cleanedText); } catch (_) {}
+    
     // Extract from ```json ... ``` block
-    const fence = cleanedText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const fence = cleanedText.match(/```(?:json)?\\s*([\\s\\S]*?)```/);
     if (fence) {
       try { return JSON.parse(fence[1].trim()); } catch (_) {}
     }
+    
     // Find first [ or { and try from there
     const arrIdx = cleanedText.indexOf('[');
     const objIdx = cleanedText.indexOf('{');
     let start = -1;
     if (arrIdx !== -1 && (objIdx === -1 || arrIdx < objIdx)) start = arrIdx;
     else if (objIdx !== -1) start = objIdx;
+    
     if (start !== -1) {
-      try { return JSON.parse(cleanedText.slice(start)); } catch (_) {}
       // Try to find matching end bracket
       const opener = cleanedText[start];
       const closer = opener === '[' ? ']' : '}';
-      const end = cleanedText.lastIndexOf(closer);
+      let end = cleanedText.lastIndexOf(closer);
+      
+      // Try from first JSON to last matching bracket
       if (end > start) {
         try { return JSON.parse(cleanedText.slice(start, end + 1)); } catch (_) {}
       }
+      
+      // Fallback: try raw slice (might be truncated but valid prefix)
+      try { return JSON.parse(cleanedText.slice(start)); } catch (_) {}
     }
+    
     return null;
   }
 

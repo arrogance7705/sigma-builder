@@ -856,9 +856,17 @@ createApp({
         onChunk(c) { wizard.brainstormText += c; },
         onDone() {
           wizard.brainstormLoading = false;
-          const parsed = AI.parseJsonFromText(wizard.brainstormText);
-          if (parsed && typeof parsed === 'object') applyWizardBrainstorm(parsed);
-          else wizard.brainstormText = 'Could not parse brainstorm output.';
+          // Clean brainstorm text before parsing (remove <think>, fences, etc.)
+          const cleaned = cleanAiText(wizard.brainstormText);
+          const parsed = AI.parseJsonFromText(cleaned);
+          if (parsed && typeof parsed === 'object') {
+            applyWizardBrainstorm(parsed);
+            wizard.brainstormText = ''; // Clear raw text on success
+          } else {
+            // Show diagnostic: what we tried to parse
+            console.error('Brainstorm parse failed. Cleaned text:', cleaned.slice(0, 200));
+            wizard.brainstormText = `Could not parse brainstorm output.${cleaned ? ` (got: ${cleaned.slice(0, 80).replace(/\n/g, ' ')})` : ''}`;
+          }
         },
         onError(e) {
           wizard.brainstormLoading = false;
