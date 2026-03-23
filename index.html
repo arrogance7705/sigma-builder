@@ -757,7 +757,7 @@
 
         <!-- Model picker — dropdown after models are fetched, text input as fallback -->
         <div class="field-group">
-          <label>Model</label>
+          <label>Model <span class="hint">(pick one to use for AI suggestions)</span></label>
           <div class="model-row">
             <select v-if="aiAvailableModels.length" v-model="aiModel" class="inp" @change="onAiSettingChange">
               <option value="">— pick a model —</option>
@@ -765,6 +765,10 @@
             </select>
             <input v-else v-model="aiModel" class="inp mono-inp" placeholder="model-name" @input="onAiSettingChange" />
             <button class="btn-tool small" @click="refreshModels" :disabled="aiLiveStatus === 'testing'" title="Re-fetch model list">↺</button>
+          </div>
+          <div v-if="aiModel" class="hint" style="margin-top:0.5rem">
+            <span v-if="aiModelRecommendation">{{ aiModelRecommendation }} · </span>
+            <strong>For JSON tasks:</strong> prefer non-thinking models or reduce max_tokens.
           </div>
         </div>
 

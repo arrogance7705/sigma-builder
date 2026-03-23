@@ -1108,6 +1108,22 @@ createApp({
       'badge-idle':    !aiEndpoint.value || aiLiveStatus.value === 'idle',
     }));
 
+    const aiModelRecommendation = computed(() => {
+      const m = aiModel.value || '';
+      if (!m) return '';
+      // Analyze model name to suggest quality for structured JSON
+      const lower = m.toLowerCase();
+      if (lower.includes('glm-4.6') || lower.includes('glm-4')) return '✓ Good for JSON (GLM)';
+      if (lower.includes('gpt-5') || lower.includes('gpt-4o')) return '✓ Excellent for JSON (GPT)';
+      if (lower.includes('mistral') && !lower.includes('small')) return '✓ Good for JSON (Mistral)';
+      if (lower.includes('qwen') && lower.includes('3.5-9b')) {
+        if (lower.includes('aggressive')) return '⚠ May have reasoning — reduce max_tokens';
+        return '⚠ May prioritize reasoning over JSON';
+      }
+      if (lower.includes('qwen')) return '⚠ May have reasoning — check model docs';
+      return '';
+    });
+
     function saveAiConfig() {
       AI.saveConfig(
         aiEndpoint.value,
@@ -1122,10 +1138,14 @@ createApp({
     }
 
     let _endpointDebounce = null;
+    let _lastTestedEndpoint = null;
     function onEndpointInput() {
+      // Clear models if endpoint changed (even before testing)
+      if (_lastTestedEndpoint && _lastTestedEndpoint !== aiEndpoint.value) {
+        aiAvailableModels.value = [];
+      }
       aiLiveStatus.value = 'idle';
       aiLiveError.value = '';
-      aiAvailableModels.value = [];
       saveAiConfig();
       clearTimeout(_endpointDebounce);
       if (!aiEndpoint.value) return;
@@ -1137,6 +1157,7 @@ createApp({
       if (!aiEndpoint.value) return;
       aiLiveStatus.value = 'testing';
       const result = await AI.testConnection(aiEndpoint.value, aiApiKey.value);
+      _lastTestedEndpoint = aiEndpoint.value;  // Track what we just tested
       if (result.ok) {
         aiLiveStatus.value = 'ok';
         aiAvailableModels.value = result.models || [];
@@ -1513,7 +1534,7 @@ createApp({
       aiAvailable, aiState,
       aiEndpoint, aiModel, aiApiKey,
       aiAvailableModels, aiLiveStatus, aiLiveError,
-      aiLiveBadgeText, aiLiveBadgeClass,
+      aiLiveBadgeText, aiLiveBadgeClass, aiModelRecommendation,
       aiShowAdvanced, aiAdvTemp, aiAdvMaxTokens,
       onEndpointInput, onAiSettingChange, refreshModels, saveAiConfig,
       aiGenerate, aiDismiss, acceptAiSuggestion,
