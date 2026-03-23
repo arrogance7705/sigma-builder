@@ -107,10 +107,10 @@ code {
 .toolbar-left  { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
 .toolbar-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; margin-left: auto; }
 
-/* Tabs live inside the toolbar, centered */
+/* Tabs live inside the toolbar */
 .toolbar-tabs {
   display: flex; align-items: stretch; flex: 1;
-  justify-content: center; gap: 0;
+  justify-content: flex-start; gap: 0;
   height: var(--toolbar-h);
 }
 .toolbar-tabs .tab-btn {
@@ -697,7 +697,7 @@ select.level-critical       { color: var(--lvl-critical); }
   .toolbar-tabs {
     flex: 1 1 auto;
     min-width: 420px;
-    justify-content: center;
+    justify-content: flex-start;
     height: 44px;
   }
 
@@ -705,7 +705,7 @@ select.level-critical       { color: var(--lvl-critical); }
     flex: 0 0 100%;
     width: 100%;
     margin-left: 0;
-    justify-content: flex-end;
+    justify-content: flex-start;
     border-top: 1px solid var(--border);
     padding-top: 0.5rem;
   }
