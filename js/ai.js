@@ -242,6 +242,7 @@
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
+    let streamedText = '';
 
     try {
       while (true) {
@@ -259,8 +260,9 @@
           try {
             const obj = JSON.parse(jsonStr);
             const choice = obj.choices?.[0] || {};
-            // extractText() handles empty content → reasoning_content fallback
-            const delta = extractText(
+            // Some providers send true deltas, others send cumulative snapshots.
+            // Normalize both to incremental chunks before forwarding to the UI.
+            const piece = extractText(
               choice.delta?.content
               || choice.delta?.text
               || choice.message?.content
@@ -269,7 +271,17 @@
               || obj.output_text
               || ''
             );
-            if (delta && onChunk) onChunk(delta);
+            if (!piece || !onChunk) continue;
+
+            let delta = piece;
+            if (streamedText && piece.startsWith(streamedText)) {
+              delta = piece.slice(streamedText.length);
+              streamedText = piece;
+            } else {
+              streamedText += piece;
+            }
+
+            if (delta) onChunk(delta);
           } catch (_) {}
         }
       }
