@@ -716,20 +716,20 @@ select.level-critical       { color: var(--lvl-critical); }
   /* ─ Variables ─ */
   :root {
     --nav-h:     44px;
-    --toolbar-h: 44px;
+    --toolbar-h: 168px;
   }
 
   /* ─ Nav ─ */
   .nav-inner { padding: 0 1rem; }
   .nav-links { display: none; }        /* hide github link — saves space */
 
-  /* ─ Toolbar: two rows ─
-     Row 1: logo + lint + ⚙ + export
-     Row 2: tabs scrollable */
+  /* ─ Toolbar: mobile stacked layout ─
+     Row 1: title + status
+     Row 2: tabs
+     Row 3-4: action buttons in two wrapped rows */
   .toolbar {
     height: auto;
     flex-direction: column;
-    --toolbar-h: 88px;        /* two rows × 44px */
   }
   .toolbar-inner {
     flex-direction: column;
@@ -743,15 +743,26 @@ select.level-critical       { color: var(--lvl-critical); }
     padding: 0 0.75rem; height: 44px; flex-shrink: 0;
   }
   .toolbar-right {
-    margin-left: auto;
-    gap: 0.3rem;
+    width: 100%;
+    margin-left: 0;
+    gap: 0.35rem;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
-  /* Hide the wordy buttons — keep ⚙ + export + new */
-  .toolbar-right .btn-tool:not(.accent):not([data-keep]) {
-    display: none;
-  }
-  /* "+ new" and "⚙" always visible */
-  .toolbar-right .btn-tool[data-keep] { display: flex; }
+  .toolbar-right .btn-tool { display: flex; }
+  /* Row 1: community, templates, library, import, share */
+  .toolbar-right .btn-tool:nth-child(1),
+  .toolbar-right .btn-tool:nth-child(2),
+  .toolbar-right .btn-tool:nth-child(3),
+  .toolbar-right .btn-tool:nth-child(5),
+  .toolbar-right .btn-tool:nth-child(6) { order: 1; }
+  /* Row 2: save, new, settings, export */
+  .toolbar-right .btn-tool:nth-child(4),
+  .toolbar-right .btn-tool:nth-child(7),
+  .toolbar-right .btn-tool:nth-child(8),
+  .toolbar-right .btn-tool:nth-child(9) { order: 2; }
 
   /* Tabs row — full width, horizontally scrollable */
   .toolbar-tabs {
@@ -775,11 +786,11 @@ select.level-critical       { color: var(--lvl-critical); }
 
   /* ─ Builder layout ─ */
   .builder-layout {
-    height: calc(100dvh - var(--nav-h) - 88px - 48px);
+    height: calc(100dvh - var(--nav-h) - var(--toolbar-h) - 48px);
     min-height: 0;
   }
   .builder-layout.matrix-mode {
-    height: calc(100dvh - var(--nav-h) - 88px - 48px);
+    height: calc(100dvh - var(--nav-h) - var(--toolbar-h) - 48px);
   }
   .preview-panel { display: none; }     /* already hidden at 1024 but reaffirm */
 
