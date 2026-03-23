@@ -129,10 +129,13 @@
     }
     if (value && typeof value === 'object') {
       if (typeof value.text === 'string') return value.text;
-      if (typeof value.content === 'string') return value.content;
+      // For content: prefer non-empty, fallback to reasoning_content if content is empty
+      const content = value.content || '';
+      if (typeof content === 'string' && content.length > 0) return content;
       if (Array.isArray(value.content)) return value.content.map(extractText).join('');
       if (typeof value.output_text === 'string') return value.output_text;
-      if (typeof value.reasoning_content === 'string') return value.reasoning_content;  // Some models use reasoning_content
+      // Fallback to reasoning_content if content was empty
+      if (typeof value.reasoning_content === 'string' && content === '') return value.reasoning_content;
       if (Array.isArray(value.parts)) return value.parts.map(extractText).join('');
       if (Array.isArray(value.items)) return value.items.map(extractText).join('');
     }
@@ -189,9 +192,9 @@
         }
         const json = await resp.json();
         const choice = json.choices?.[0] || {};
+        // extractText() already handles empty content → reasoning_content fallback
         const content = extractText(
           choice.message?.content
-          || choice.message?.reasoning_content
           || choice.text
           || choice.reasoning_content
           || json.output_text
@@ -219,9 +222,9 @@
       try {
         const json = await resp.json();
         const choice = json.choices?.[0] || {};
+        // extractText() already handles empty content → reasoning_content fallback
         const content = extractText(
           choice.message?.content
-          || choice.message?.reasoning_content
           || choice.text
           || choice.reasoning_content
           || json.output_text
@@ -256,12 +259,12 @@
           try {
             const obj = JSON.parse(jsonStr);
             const choice = obj.choices?.[0] || {};
+            // extractText() handles empty content → reasoning_content fallback
             const delta = extractText(
               choice.delta?.content
               || choice.delta?.text
-              || choice.delta?.reasoning_content  // Some models put reasoning here
               || choice.message?.content
-              || choice.message?.reasoning_content  // Some models put reasoning here
+              || choice.message?.reasoning_content
               || choice.text
               || obj.output_text
               || ''
