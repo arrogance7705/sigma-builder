@@ -1053,51 +1053,58 @@ createApp({
       const normalize = (items) => items
         .map(item => typeof item === 'string' ? item : '')
         .map(item => mapper(item.trim()))
-        .filter(item => item && !item.startsWith('[') && !item.startsWith('{') && !item.startsWith(']') && !item.startsWith('}'));
+        .filter(item => item)
+        .filter(item => !/^(?:\[|\{|\]|\}|```|json\b)/i.test(item))
+        .filter(item => item.length < 500)
+        .filter(item => !/^\s*[\[{].*[\]}]\s*$/.test(item));
 
-      // Try to parse as JSON first
+      // 1) Try full JSON parse first
       const parsed = AI.parseJsonFromText(raw);
-      
       if (Array.isArray(parsed)) {
         return [...new Set(normalize(parsed))];
       }
-
       if (parsed && typeof parsed === 'object') {
         const firstArray = Object.values(parsed).find(Array.isArray);
         if (Array.isArray(firstArray)) return [...new Set(normalize(firstArray))];
       }
 
-      // JSON parse failed, try as text lines
       const cleaned = cleanAiText(raw);
       if (!cleaned) return [];
 
-      // Split by newlines
+      // 2) If full JSON failed, salvage any valid JSON string literals already present.
+      // This handles truncated arrays like:
+      //   ["item 1", "item 2"
+      // and ignores everything outside the quoted strings.
+      const stringLiterals = [];
+      const literalRegex = /"((?:\\.|[^"\\])*)"/g;
+      let match;
+      while ((match = literalRegex.exec(cleaned)) !== null) {
+        try {
+          stringLiterals.push(JSON.parse(`"${match[1]}"`));
+        } catch (_) {}
+      }
+      if (stringLiterals.length) {
+        return [...new Set(normalize(stringLiterals))];
+      }
+
+      // 3) Fall back to line parsing for non-JSON plain-text outputs.
       const lines = cleaned
         .split(/\r?\n+/)
         .map(line => line.replace(/^[-*•\d.)\s]+/, '').trim())
-        .filter(Boolean);
-
-      // If we got lines, use them; otherwise raw cleaned is probably malformed
+        .filter(Boolean)
+        .filter(line => !/^```/.test(line))
+        .filter(line => !/^json$/i.test(line));
       if (lines.length) {
         return [...new Set(normalize(lines))];
       }
 
-      // Last resort: if it looks like JSON but we couldn't parse it, try to salvage items
+      // 4) If it still looks like JSON but we could not recover valid string items, give up safely.
       if (cleaned.startsWith('[') || cleaned.startsWith('{')) {
-        // Try to extract items between quotes: look for "..." patterns
-        const quoted = cleaned.match(/"([^"\\]|\\.)*"/g);
-        if (quoted && quoted.length > 0) {
-          // Remove the quotes and unescape
-          const items = quoted.map(q => q.slice(1, -1).replace(/\\"/g, '"'));
-          return [...new Set(normalize(items))];
-        }
-        // Still nothing, return empty
         return [];
       }
 
-      // Single item (plain text) - but filter out anything that looks like JSON syntax
-      const singleItem = normalize([cleaned]);
-      return singleItem.filter(item => item.length < 500 && !item.includes('[\"') && !item.includes('\"]'));
+      // 5) Single plain-text response.
+      return [...new Set(normalize([cleaned]))];
     }
 
     function extractSingleSuggestion(raw) {
