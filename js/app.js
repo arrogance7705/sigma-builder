@@ -1027,12 +1027,14 @@ createApp({
     }
 
     function extractSuggestionList(raw, { mapper = (item) => item } = {}) {
-      const parsed = AI.parseJsonFromText(raw);
       const normalize = (items) => items
         .map(item => typeof item === 'string' ? item : '')
         .map(item => mapper(item.trim()))
         .filter(Boolean);
 
+      // Try to parse as JSON first
+      const parsed = AI.parseJsonFromText(raw);
+      
       if (Array.isArray(parsed)) {
         return [...new Set(normalize(parsed))];
       }
@@ -1042,15 +1044,28 @@ createApp({
         if (Array.isArray(firstArray)) return [...new Set(normalize(firstArray))];
       }
 
+      // JSON parse failed, try as text lines
       const cleaned = cleanAiText(raw);
       if (!cleaned) return [];
 
+      // Split by newlines
       const lines = cleaned
         .split(/\r?\n+/)
         .map(line => line.replace(/^[-*•\d.)\s]+/, '').trim())
         .filter(Boolean);
 
-      return [...new Set(normalize(lines.length ? lines : [cleaned]))];
+      // If we got lines, use them; otherwise raw cleaned is probably malformed
+      if (lines.length) {
+        return [...new Set(normalize(lines))];
+      }
+
+      // Last resort: if it looks like JSON but we couldn't parse it, don't wrap it
+      if (cleaned.startsWith('[') || cleaned.startsWith('{')) {
+        return []; // Return empty instead of wrapping unparseable JSON
+      }
+
+      // Single item (plain text)
+      return [...new Set(normalize([cleaned]))];
     }
 
     function extractSingleSuggestion(raw) {
